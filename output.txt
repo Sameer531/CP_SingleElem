@@ -1,0 +1,4 @@
+output flat text element stresses
+output flat text element strains
+output flat text nodal displacements
+output flat text element states type 7

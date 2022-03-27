@@ -1,0 +1,153 @@
+c
+c     A very simple WARP3D example.
+c     Single element, loading set up for uniaxial tension and simple shear. 
+c
+c     Model is a single linear hexagonal element of length 1x1x1.  Faces
+c     on the xy, xz, and yz planes have symmetry constraints.  Other faces
+c     have tractions appropriate for the load choice
+c
+c     Material model is now single crystal plasticity.
+c
+c     All the load are applied in 100 equal steps, output to screen and
+c     to paraview for plotting.
+c
+c     Units for the mesh are MPa and mm.
+c
+c ******************************************************************************
+c
+c     Model name
+c
+structure single_element
+c     
+c     Input the total number of nodes and elements in the model
+c
+number of nodes 8
+number of elements 1
+c
+c
+c	  A crystal definition (Al-ish properties)
+c
+crystal 1
+      properties slip_type fcc elastic_type isotropic,
+      e 78811.2 nu 0.33,
+      hardening mts harden_n 20 voce_m 1.0,
+	  mu_0 29628.3 D_0 0.0 T_0 204,
+      theta_0 180.0,
+      b 3.5E-7 boltz 1.3806E-20,
+      tau_a 0.0,
+      tau_hat_y 155.0 g_0_y 0.007808 q_y 2.0 p_y 0.5,
+      eps_dot_0_y 1.0E13,
+      tau_hat_v 25.0 g_0_v 0.00488 q_v 2.0 p_v 0.5,
+      eps_dot_0_v 1.0E7, 
+      k_0 0.0
+c
+c	A single crystal CP material
+c
+material al_cp
+      properties cp alpha 1.08E-5 rho 0.0 angle_convention kocks,
+      n_crystals 1 crystal_input single crystal_type 1,
+	  angle_type degrees, 
+      orientation_input single angles 55.0 45.0 0.0,
+      debug off tolerance 1.0E-10
+c     
+c     Each command must be on a single line, but a comma at the end of a
+c     indicates the line should continue
+c
+c     Assign the element a type (linear or quadratic, hex or tet), geometric
+c     formulation (small or large strains), a material (defined above), 
+c     an integration scheme, and also tell the solver to use a bbar
+c     stabilization scheme
+c
+c	  The CP model (in the version you have) must have nonlinear geometry
+c
+elements
+      1 type l3disop nonlinear material al_cp order 2x2x2 bbar
+c
+c     The coordinates of each node, with each line:
+c     node number  x     y     z
+c
+coordinates
+      1     0.0   0.0   0.0
+      2     1.0   0.0   0.0
+      3     1.0   1.0   0.0
+      4     0.0   1.0   0.0
+      5     0.0   0.0   1.0
+      6     1.0   0.0   1.0
+      7     1.0   1.0   1.0
+      8     0.0   1.0   1.0
+c
+c     The connectivity of each element, with each line:
+c     element number    node1 node2 node3 ...
+c
+incidences
+      1     1     2     3     4     5     6     7     8
+c
+c     Blocking: don't worry about this, just set to automatic
+c
+blocking automatic
+c
+c     Define the model constraints.  Here we just impose symmetry constraints
+c     on three faces of the elements.  You could also define point constraints
+c     on individual nodes.
+c
+c	  Load the z=1.0 face of the model with displacements
+c
+constraints
+      plane x = 0 u = 0
+      plane y = 0 v = 0
+      plane z = 0 w = 0
+	 plane z = 1.0 w = 0.2
+c
+c loading dummy
+c  nodal forces
+c   1 force_x 0.0
+c
+ loading main
+   nonlinear
+     steps 1-100 constraints 0.01
+c
+c
+nonlinear analysis parameters
+  solution technique iterative sparse
+  maximum iterations 5
+  minimum iterations 1
+  convergence test norm res tol 0.01
+  time step 1.0e10
+  linear stiffness iteration one off
+  adaptive solution on
+  bbar stabilization factor 0.0
+  extrapolate on
+c
+c     The commands of the form:
+c           compute displacements for loading x step y
+c     tell warp3d to impose y steps of loading x on the model
+c     This command actually triggers solving the load steps
+c
+c     The other commands are for output
+c           output displacements 5-8
+c     tell warp3d to print the displacements for nodes 5, 6, 7, 8
+c           output stresses 1
+c           output strains 1
+c     tell warp3d to print the stresses/strains for element 1
+c     
+c     The reminder of the output commands are patran specific
+c           output patran neutral file 'fromwarp.out'
+c     tells warp3d to output a patran compatible neutral file of the mesh
+c           output patran binary displacements
+c     produces a patran compatible results file with the nodal displacements
+c     Notice we do this before imposing any load so we have the
+c     undeformed mesh at load step "0".
+c           output patran binary element stresses
+c           output patran binary element strains
+c     outputs a patran compatible file for the stresses/strains at the element
+c
+c
+c output patran neutral 'fromwarp.out'
+c output patran binary displacements
+c
+output commands file "output.txt" steps 1-100 by 1
+compute displacements loading main for steps 1-100
+output model flat patran convention text file
+c
+c
+stop
